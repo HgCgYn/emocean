@@ -1,0 +1,161 @@
+/* ==========================================
+   0. 全域重置
+   ========================================== */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* ==========================================
+   1. 基礎佈局：全域背景與玻璃外框
+   ========================================== */
+body {
+  margin: 0; padding: 15px; background-image: url('./images/new-bg-dark.webp'); background-size: cover; background-position: center; background-attachment: fixed; transition: background-image 0.5s ease; height: 100vh;
+  box-sizing: border-box; font-family: 'Noto Sans TC', sans-serif; overflow: hidden; color: #fff; display: flex; justify-content: center; align-items: center;
+}
+body.light-mode { background-image: url('./images/new-bg-light.webp'); }
+
+#appContainer {
+  position: relative; width: 100%; height: 100%; border-radius: 47px; overflow: hidden; background-color: transparent; border: 2px solid rgba(255, 255, 255, 0.2); box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.1), 0 20px 50px rgba(0, 0, 0, 0.5); box-sizing: border-box;
+}
+
+/* ==========================================
+   2. 迎賓布幕
+   ========================================== */
+#startScreen {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('./images/new-bg-dark.webp'); background-size: cover; background-position: center; background-attachment: fixed; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: opacity 0.5s ease;
+}
+body.light-mode #startScreen { background-image: linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.3)), url('./images/new-bg-light.webp'); }
+#startScreen h1 { font-family: 'LXGW WenKai TC', cursive; font-size: 80px; margin: 0; background: linear-gradient(135deg, #D946EF 10%, #0EA5E9 50%, #2DD4BF 90%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 5px; font-weight: 900; filter: drop-shadow(0px 4px 20px rgba(0, 0, 0, 0.8)); }
+#startScreen p { font-family: 'LXGW WenKai TC', cursive; color: rgba(255,255,255,0.8); font-size: 16px; letter-spacing: 2px; margin-top: 15px; font-weight: 700; text-shadow: 0px 2px 10px rgba(0, 0, 0, 0.9), 0px 0px 5px rgba(0, 0, 0, 0.8); }
+body.light-mode #startScreen h1 { filter: drop-shadow(0px 4px 20px rgba(255, 255, 255, 0.9)); }
+body.light-mode #startScreen p { color: rgba(0, 0, 0, 0.7); text-shadow: 0px 2px 10px rgba(255, 255, 255, 0.9), 0px 0px 5px rgba(255, 255, 255, 1); }
+
+/* ==========================================
+   3. 共有介面與標題
+   ========================================== */
+.hidden { display: none !important; }
+.panel-header { font-size: 20px; font-weight: 700; margin: 4px 4px 16px 4px; display: flex; align-items: center; justify-content: center; gap: 8px; letter-spacing: 1px; }
+
+/* ==========================================
+   ✨ 核心：電腦版 Hover 型態變化 (Morphing) 引擎 
+   ========================================== */
+@media (min-width: 769px) {
+
+  #controlWrapper { 
+    position: absolute; top: 15px; left: 15px; z-index: 10; 
+    display: flex; flex-direction: row; gap: 15px; align-items: flex-start; 
+  }
+
+  .morph-group {
+    position: relative; background-color: rgba(0, 0, 0, 0.25) !important; backdrop-filter: blur(20px) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; border-radius: 32px; overflow: hidden; display: flex;
+    min-width: 64px; min-height: 64px; max-width: 64px; max-height: 64px;
+    transition: max-width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), max-height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.3s;
+  }
+  
+  /* 🌟 關鍵修復：當面板展開時，加上 overflow: visible !important 解鎖邊界，讓音樂提示字能飛出去！ */
+  .morph-group.expanded { 
+    background-color: rgba(0, 0, 0, 0.4) !important; 
+    overflow: visible !important; 
+  }
+
+  #settingGroup.expanded { max-width: 240px; max-height: 300px; }
+  #inputGroup.expanded { max-width: 350px; max-height: 500px; }
+  #musicGroup.expanded { max-width: 600px; max-height: 64px; }
+
+  .morph-btn {
+    background: transparent !important; border: none !important; box-shadow: none !important; width: 64px; height: 64px; flex-shrink: 0; position: absolute; top: 0; left: 0; transition: opacity 0.2s, transform 0.3s; z-index: 2; color: #fff;
+    display: flex !important; justify-content: center !important; align-items: center !important; cursor: pointer; outline: none; padding: 0 !important;
+  }
+  .morph-group.expanded .morph-btn { opacity: 0; pointer-events: none; transform: scale(0.5); }
+
+  .morph-panel {
+    background: transparent !important; backdrop-filter: none !important; border: none !important; box-shadow: none !important; opacity: 0; pointer-events: none; transition: opacity 0.3s 0.1s, transform 0.3s 0.1s; transform: translateY(10px); position: relative; z-index: 1; box-sizing: border-box; color: #fff;
+  }
+  .morph-group.expanded .morph-panel { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+  #settingsPanel.hidden { display: flex !important; }
+  #inputContent.hidden { display: block !important; }
+  #musicCapsule.hidden { display: flex !important; }
+
+  #settingsPanel { width: 220px; padding: 20px; display: flex; flex-direction: column; gap: 15px; align-items: stretch; }
+  #inputContent { width: 320px; padding: 20px; }
+  #musicCapsule { width: max-content; height: 64px; padding: 10px 15px; display: flex; align-items: center; gap: 10px; flex-direction: row; }
+
+  #musicControlWrapper { position: absolute; bottom: 15px; right: 15px; z-index: 10; display: flex; justify-content: flex-end; align-items: flex-end; }
+  #musicGroup .morph-btn { left: auto; right: 0; }
+  #musicGroup .morph-panel { transform: translateX(20px); padding-right: 64px; }
+  #musicGroup.expanded .morph-panel { transform: translateX(0); padding-right: 15px; }
+}
+
+/* ==========================================
+   4. 白色毛玻璃按鈕共用樣式
+   ========================================== */
+.action-btn, .emotion-btn, .music-mode-btn { background-color: rgba(255, 255, 255, 0.85) !important; backdrop-filter: blur(12px) !important; -webkit-backdrop-filter: blur(12px) !important; border: 1px solid rgba(255, 255, 255, 0.9) !important; color: #000 !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important; transition: all 0.2s ease !important; outline: none; }
+.action-btn:hover, .emotion-btn:hover, .music-mode-btn:hover { background-color: rgba(255, 255, 255, 0.95) !important; }
+.action-btn:active, .emotion-btn:active, .music-mode-btn:active { transform: scale(0.96) !important; background-color: #ffffff !important; }
+.action-btn { padding: 10px 18px; border-radius: 999px; font-size: 16px; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; white-space: nowrap; }
+#emotionSelector { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;}
+.emotion-btn { border-radius: 999px; padding: 6px 14px 8px 9px; display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700; font-size: 16px; }
+.emotion-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); }
+#messageInput { width: calc(100% - 8px); margin: 0 4px 14px 4px; padding: 10px 15px; border-radius: 10px; border: none; background-color: var(--input-bg-color, rgba(255, 255, 255, 0.1)); color: var(--input-text-color, #fff); backdrop-filter: blur(5px); border: 1px solid rgba(255, 255, 255, 0.1); font-weight: 700; font-size: 16px; box-sizing: border-box; outline: none; transition: background-color 0.3s ease, color 0.3s ease; }
+#messageInput::placeholder { color: var(--input-placeholder-color, rgba(255, 255, 255, 0.7)); font-weight: 500; transition: color 0.3s ease; }
+.btn-group { display: flex; gap: 10px; } .btn-group .action-btn { flex: 1; }
+.music-mode-btn { position: relative; width: 44px; height: 44px; border-radius: 22px; font-size: 22px; font-weight: 900; cursor: pointer; display: flex; justify-content: center; align-items: center; font-family: 'Noto Sans TC', sans-serif; }
+
+/* 🌟 音樂提示字也加上 z-index，保證不會被吃掉 */
+.music-mode-btn::after { content: attr(data-song); position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%) translateY(10px); background-color: transparent; border: none; box-shadow: none; padding: 0; color: #fff; font-size: 15px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9), 0 0 5px rgba(0, 0, 0, 0.8); pointer-events: none; opacity: 0; visibility: hidden; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); z-index: 100; }
+.music-mode-btn:hover::after { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+.music-mode-btn.playing { background-color: #ffffff !important; color: #000 !important; box-shadow: 0 0 15px rgba(255, 255, 255, 0.8), inset 0 0 5px rgba(0, 0, 0, 0.1) !important; transform: scale(0.96); }
+
+/* ==========================================
+   5. 畫布設定 & 隱形點擊遮罩
+   ========================================== */
+.tooltip-card { position: absolute; padding: 8px 14px; border-radius: 10px; background-color: #000; color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none; z-index: 100; pointer-events: none; font-size: 18px; font-weight: 700; transition: opacity 0.2s; white-space: normal; word-break: break-word; max-width: 44.44vw; line-height: 1.4; }
+#oceanCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; }
+#skyOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 40%; z-index: 2; pointer-events: none; }
+#dimOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: transparent; z-index: 15; transition: opacity 0.3s; }
+
+/* ==========================================
+   6. 手機版 RWD (防護隱藏機制修復版)
+   ========================================== */
+@media (max-width: 768px) {
+  body { padding: 0; }
+  #appContainer { border-radius: 38px; border: 1px solid rgba(255, 255, 255, 0.25); box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.08); }
+  #startScreen h1 { font-size: 45px; } #startScreen p { font-size: 14px; }
+  
+  #controlWrapper { flex-direction: row !important; }
+  
+  .morph-group {
+    background: transparent !important; border: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; box-shadow: none !important; overflow: visible; display: block; max-width: none; max-height: none;
+  }
+
+  .morph-btn:not(.hidden) {
+    background-color: rgba(0, 0, 0, 0.25) !important; backdrop-filter: blur(20px) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
+    position: relative !important; width: 46px !important; height: 46px !important; border-radius: 23px !important;
+    display: flex !important; justify-content: center !important; align-items: center !important; padding: 0 !important; transform: none !important; opacity: 1 !important; pointer-events: auto !important;
+  }
+  .morph-btn svg { margin: 0 !important; display: block !important; }
+
+  .morph-panel:not(.hidden) {
+    background-color: rgba(0, 0, 0, 0.25) !important; backdrop-filter: blur(20px) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
+    position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; z-index: 20; border-radius: 38px !important; opacity: 1 !important; pointer-events: auto !important; transition: top 0.3s ease; box-sizing: border-box !important;
+  }
+  .morph-panel:focus-within:not(#settingsPanel) { top: 30% !important; }
+  
+  #settingsPanel:not(.hidden) { display: flex !important; flex-direction: column !important; gap: 15px !important; width: 85% !important; max-width: 320px !important; align-items: stretch !important; padding: 24px !important; }
+  #inputContent:not(.hidden) { display: block !important; width: 85% !important; max-width: 320px !important; padding: 18px !important; }
+
+  #toggleBtn { display: none !important; }
+  #settingBtn:not(.hidden) { display: flex !important; }
+  #musicControlWrapper { display: none !important; }
+  #controlWrapper { top: 15px; left: 15px; z-index: 20; position: fixed;}
+
+  #mobileBottomBar:not(.hidden) { position: fixed; bottom: 15px; left: 15px; right: 15px; display: flex; gap: 15px; z-index: 20; }
+  .pill-btn { flex: 1; color: #fff; background-color: rgba(0, 0, 0, 0.25); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 999px; padding: 15px 0; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 8px 32px 0 rgba(0,0,0,0.3); }
+
+  #dpadPanel:not(.hidden) { position: fixed; top: calc((100vw - 265px) / 2); left: 0; right: 0; display: flex; justify-content: center; align-items: center; z-index: 20; pointer-events: none; }
+  #dpadContainer { display: grid; grid-template-columns: repeat(3, 85px); grid-template-rows: repeat(3, 85px); gap: 5px; justify-content: center; align-content: center; pointer-events: none; }
+  #dpadUp { grid-column: 2; grid-row: 1; } #dpadLeft { grid-column: 1; grid-row: 2; } #dpadRight { grid-column: 3; grid-row: 2; } #dpadDown { grid-column: 2; grid-row: 3; } .dpad-spacer { grid-column: 2; grid-row: 2; }
+  .dpad-btn { pointer-events: auto; background-color: rgba(0, 0, 0, 0.25) !important; backdrop-filter: blur(20px) !important; border: 1px solid rgba(255, 255, 255, 0.15) !important; border-radius: 50%; width: 85px; height: 85px; display: flex; justify-content: center; align-items: center; padding: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: transform 0.1s ease; }
+  .dpad-btn svg { width: 48px; height: 48px; }
+  .dpad-btn:active { transform: scale(0.9); background-color: rgba(255, 255, 255, 0.15) !important; }
+  .tooltip-card { max-width: 33.33vw; font-size: 15px; }
+}
