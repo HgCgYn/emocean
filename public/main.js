@@ -161,7 +161,7 @@ function resetInputPanel() {
 }
 
 /* ==========================================
-   6. 配色切換 
+   6. 配色切換 (統一向外擴散動畫)
    ========================================== */
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 let isThemeSwitching = false; 
@@ -172,12 +172,56 @@ if (currentTheme === 'light') {
   document.body.classList.remove('light-mode'); if (themeToggleBtn) themeToggleBtn.innerText = '亮色模式';
 }
 
-themeToggleBtn.addEventListener('click', () => {
+themeToggleBtn.addEventListener('click', (e) => {
   if (isThemeSwitching) return; 
-  isThemeSwitching = true; themeToggleBtn.style.opacity = '0.5'; themeToggleBtn.style.pointerEvents = 'none';
-  if (currentTheme === 'dark') { currentTheme = 'light'; document.body.classList.add('light-mode'); themeToggleBtn.innerText = '暗色模式';
-  } else { currentTheme = 'dark'; document.body.classList.remove('light-mode'); themeToggleBtn.innerText = '亮色模式'; }
-  updateWordCloud(); setTimeout(() => { isThemeSwitching = false; themeToggleBtn.style.opacity = '1'; themeToggleBtn.style.pointerEvents = 'auto'; }, 1600);
+  isThemeSwitching = true; 
+  themeToggleBtn.style.opacity = '0.5'; 
+  themeToggleBtn.style.pointerEvents = 'none';
+
+  // 取得滑鼠點擊（或手指觸控）的 X 與 Y 座標
+  const x = e.clientX || window.innerWidth / 2;
+  const y = e.clientY || window.innerHeight / 2;
+
+  // 切換核心邏輯 (移除了原先複雜的 classList 判斷)
+  const toggleTheme = () => {
+    if (currentTheme === 'dark') { 
+      currentTheme = 'light'; 
+      document.body.classList.add('light-mode'); 
+      themeToggleBtn.innerText = '暗色模式';
+    } else { 
+      currentTheme = 'dark'; 
+      document.body.classList.remove('light-mode'); 
+      themeToggleBtn.innerText = '亮色模式';
+    }
+    updateWordCloud(); // 重新繪製文字雲
+  };
+
+  const enableTransitions = 'startViewTransition' in document && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (!enableTransitions) {
+    toggleTheme();
+    setTimeout(() => { 
+      isThemeSwitching = false; 
+      themeToggleBtn.style.opacity = '1'; 
+      themeToggleBtn.style.pointerEvents = 'auto'; 
+    }, 1600);
+    return;
+  }
+
+  // 設定 CSS 變數，告訴 CSS 圓心在哪裡
+  document.documentElement.style.setProperty('--darkX', `${x}px`);
+  document.documentElement.style.setProperty('--darkY', `${y}px`);
+
+  // 啟動動畫
+  const transition = document.startViewTransition(() => {
+    toggleTheme();
+  });
+
+  transition.finished.then(() => {
+    isThemeSwitching = false; 
+    themeToggleBtn.style.opacity = '1'; 
+    themeToggleBtn.style.pointerEvents = 'auto';
+  });
 });
 
 /* ==========================================

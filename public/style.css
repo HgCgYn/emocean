@@ -17,7 +17,7 @@ body::before {
    1. 基礎佈局：全域背景與玻璃外框
    ========================================== */
 body {
-  margin: 0; padding: 15px; background-image: url('./images/new-bg-dark.webp'); background-size: cover; background-position: center; background-attachment: fixed; transition: background-image 0.5s ease; height: 100vh;
+  margin: 0; padding: 15px; background-image: url('./images/new-bg-dark.webp'); background-size: cover; background-position: center; background-attachment: fixed; height: 100vh;
   box-sizing: border-box; font-family: 'Noto Sans TC', sans-serif; overflow: hidden; color: #fff; display: flex; justify-content: center; align-items: center;
 }
 body.light-mode { background-image: url('./images/new-bg-light.webp'); }
@@ -314,4 +314,34 @@ body.light-mode .music-mode-btn svg { stroke: #1d1d1f !important; }
 body.light-mode .music-mode-btn::after { 
   color: #1d1d1f !important; 
   text-shadow: 0 1px 4px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.7) !important; 
+}
+
+/* ==========================================
+   ✨ 圓形擴散切換動畫 (View Transitions API)
+   ========================================== */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* 舊視圖永遠留在底層 */
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+/* 新視圖永遠在頂層，並統一以圓形向外擴散 */
+::view-transition-new(root) {
+  z-index: 2;
+  /* 🌟 將時間改為 1.2s 讓動畫變慢、更優雅柔和 */
+  animation: theme-circle-reveal 1.2s cubic-bezier(0.25, 1, 0.3, 1);
+}
+
+@keyframes theme-circle-reveal {
+  from {
+    clip-path: circle(0% at var(--darkX) var(--darkY));
+  }
+  to {
+    clip-path: circle(150% at var(--darkX) var(--darkY));
+  }
 }
