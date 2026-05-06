@@ -66,7 +66,7 @@ let selectedParticle = null;
 let audioCtx; let analyser; let dataArray; let tracks = []; let currentTrackIndex = -1; 
 
 /* ==========================================
-   4. 全域背景點擊事件與初始進入設定 (加入圓形擴散動畫)
+   4. 全域背景點擊事件與初始進入設定
    ========================================== */
 startScreen.addEventListener('click', (e) => {
   // 1. 取得滑鼠或手指點擊的座標
@@ -106,6 +106,25 @@ startScreen.addEventListener('click', (e) => {
   document.startViewTransition(() => {
     enterGame();
   });
+});
+
+// 🌟 畫布點擊邏輯（瘦身版：現在專心負責「隱藏/顯示」平常的底部選單就好）
+canvas.addEventListener('click', () => {
+  if (isMobile) {
+    // 移除了 dpad 的判斷，因為關閉 D-pad 已經交給 dimOverlay 處理了
+    if (mobileState === 'idle') {
+      mobileBottomBar.classList.remove('hidden'); settingBtn.classList.remove('hidden'); mobileState = 'bottomBar';
+    } else if (mobileState === 'bottomBar') {
+      mobileBottomBar.classList.add('hidden'); settingBtn.classList.add('hidden'); mobileState = 'idle';
+    }
+  } else {
+    const wrapper = document.getElementById('controlWrapper');
+    if (desktopUIState === 'hidden') {
+      wrapper.classList.remove('hidden'); musicControlWrapper.classList.remove('hidden'); desktopUIState = 'visible';
+    } else {
+      wrapper.classList.add('hidden'); musicControlWrapper.classList.add('hidden'); desktopUIState = 'hidden'; 
+    }
+  }
 });
 
 /* ==========================================
@@ -491,17 +510,37 @@ if (isMobile) {
     e.stopPropagation(); dimOverlay.classList.remove('hidden'); settingBtn.classList.add('hidden'); mobileBottomBar.classList.add('hidden'); dpadPanel.classList.add('hidden'); settingsPanel.classList.remove('hidden'); mobileState = 'settings'; 
   });
   
+  // 🌟 點擊外圍空白處防護罩：收起所有面板，齒輪與底部選單一起重新出現
   dimOverlay.addEventListener('click', () => { 
-    settingsPanel.classList.add('hidden'); inputContent.classList.add('hidden'); dimOverlay.classList.add('hidden'); 
-    settingBtn.classList.remove('hidden'); mobileBottomBar.classList.remove('hidden'); mobileState = 'bottomBar'; resetInputPanel(); 
+    settingsPanel.classList.add('hidden'); 
+    inputContent.classList.add('hidden'); 
+    
+    // 🍎 新增這三行：把 D-pad 與 Tooltip 一起乾淨地收起來
+    dpadPanel.classList.add('hidden'); 
+    document.getElementById('tooltip').style.display = 'none'; 
+    selectedParticle = null; 
+
+    dimOverlay.classList.add('hidden'); 
+    settingBtn.classList.remove('hidden'); 
+    mobileBottomBar.classList.remove('hidden'); 
+    mobileState = 'bottomBar'; 
+    resetInputPanel(); 
   });
   
   writeMsgBtn.addEventListener('click', (e) => { 
     e.stopPropagation(); mobileBottomBar.classList.add('hidden'); settingBtn.classList.add('hidden'); inputContent.classList.remove('hidden'); dimOverlay.classList.remove('hidden'); mobileState = 'writing'; 
   });
   
+  // 🌟 點擊查看留言：底部選單和齒輪一起消失，並開啟防護罩
   viewMsgBtn.addEventListener('click', (e) => { 
-    e.stopPropagation(); mobileBottomBar.classList.add('hidden'); dpadPanel.classList.remove('hidden'); settingBtn.classList.add('hidden'); mobileState = 'dpad'; 
+    e.stopPropagation(); 
+    
+    dimOverlay.classList.remove('hidden'); // 🍎 新增這行：開啟隱形防護罩捕捉點擊
+    
+    mobileBottomBar.classList.add('hidden'); 
+    dpadPanel.classList.remove('hidden'); 
+    settingBtn.classList.add('hidden'); 
+    mobileState = 'dpad'; 
     const centerX = canvas.width / 2, centerY = canvas.height / 2; let minDistance = Infinity; nodes.forEach(node => { if (!node.isInteractive) return; const dist = Math.hypot(node.currentX - centerX, node.currentY - centerY); if (dist < minDistance) { minDistance = dist; selectedParticle = node; } }); updateMobileTooltipText(selectedParticle); 
   });
 
