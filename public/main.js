@@ -83,7 +83,6 @@ startScreen.addEventListener('click', () => {
   }
 });
 
-// 🌟 手機版點擊空白處邏輯：設定按鈕與底部欄「同進同出」
 canvas.addEventListener('click', () => {
   if (isMobile) {
     if (mobileState === 'dpad') {
@@ -182,37 +181,137 @@ themeToggleBtn.addEventListener('click', () => {
 });
 
 /* ==========================================
-   7. NLP 現代內建斷詞與文字雲 
+   7. NLP 終極無敵版：跨語系借用 + N-gram 智慧回退
    ========================================== */
 const skyWidth = window.innerWidth, skyHeight = window.innerHeight * 0.4; let mySavedBottles = []; 
-const stopWords = ["我們", "你們", "他們", "她們", "它們", "大家", "自己", "別人", "什麼", "怎麼", "為什麼", "因為", "所以", "如果", "雖然", "可是", "但是", "非常", "超級", "可以", "覺得", "知道", "今天", "明天", "我", "你", "他", "的", "了", "啊", "啦", "吧", "呢", "嗎", "喔", "是", "有", "在", "就", "會", "能", "想"];
+
+const stopWords = [
+  "我們", "你們", "他們", "她們", "它們", "大家", "自己", "別人", 
+  "什麼", "怎麼", "為什麼", "因為", "所以", "如果", "雖然", "可是", "但是", 
+  "非常", "超級", "可以", "覺得", "知道", "今天", "明天", "現在", "然後", 
+  "這個", "那個", "一個", "就是", "還是", "沒有", "這樣", "那樣",
+  "我", "你", "他", "的", "了", "啊", "啦", "吧", "呢", "嗎", "喔", 
+  "是", "有", "在", "就", "會", "能", "想", "也", "都", "不", "很", "要", "去", "還", "真的", "的確","了"
+];
 
 function updateWordCloud() {
-  let wordCounts = {}; const segmenter = new Intl.Segmenter('zh-TW', { granularity: 'word' });
-  mySavedBottles.forEach(msg => {
-    let text = msg.text || ""; const segments = segmenter.segment(text);
-    for (const { segment, isWordLike } of segments) {
-      if (isWordLike) {
-        const word = segment.trim(); const checkWord = word.toUpperCase(); 
-        if (word.length >= 2 && word.length <= 6 && !stopWords.includes(checkWord) && isNaN(word)) { wordCounts[word] = (wordCounts[word] || 0) + 1; }
+  let wordCounts = {};
+  
+  let hasSegmenter = false;
+  let segmenter = null;
+
+  // 🍎 終極秘訣：借用 'zh-CN' 字典！
+  // Android 的 WebView 常常閹割 zh-TW 字典，但 zh-CN 通常都在，且能完美識別繁體字！
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    try {
+      segmenter = new Intl.Segmenter('zh-CN', { granularity: 'word' });
+      const testSeg = Array.from(segmenter.segment("測試"));
+      // 如果沒有被切碎成長度為 1，代表字典是健康的
+      if (testSeg.length === 1 && testSeg[0].segment === "測試") {
+        hasSegmenter = true;
       }
+    } catch (e) {
+      hasSegmenter = false;
+    }
+  }
+
+  mySavedBottles.forEach(msg => {
+    let text = msg.text || "";
+    
+    if (hasSegmenter) {
+      const segments = segmenter.segment(text);
+      for (const { segment } of segments) {
+        processWord(segment, wordCounts);
+      }
+    } else {
+      // 🍎 N-gram 智慧滑動切詞 (針對超舊手機的終極後備方案)
+      // 把句子中的標點符號換成空白，只留中文
+      const cleanText = text.replace(/[^\u4E00-\u9FA5]/g, " "); 
+      const sentences = cleanText.split(/\s+/);
+      
+      sentences.forEach(sentence => {
+        if (sentence.length >= 2) {
+          // 滑動抓取所有連續的 2 字詞 (Bi-gram)
+          for (let i = 0; i < sentence.length - 1; i++) {
+            processWord(sentence.substr(i, 2), wordCounts);
+          }
+          // 滑動抓取所有連續的 3 字詞 (Tri-gram)
+          for (let i = 0; i < sentence.length - 2; i++) {
+            processWord(sentence.substr(i, 3), wordCounts);
+          }
+        }
+      });
     }
   });
 
-  const baseFontSize = isMobile ? 14 : 20; const fontSizeStep = isMobile ? 8 : 12; 
-  let finalWords = Object.keys(wordCounts).map(word => ({ text: word, size: baseFontSize + (wordCounts[word] * fontSizeStep) }));
-  finalWords.sort((a, b) => b.size - a.size); let topWords = finalWords.slice(0, 20);
+  function processWord(word, counts) {
+    const cleanWord = word.replace(/[^\u4E00-\u9FA5a-zA-Z0-9]/g, "").trim();
+    
+    if (cleanWord.length >= 2 && cleanWord.length <= 6 && !stopWords.includes(cleanWord)) {
+      counts[cleanWord] = (counts[cleanWord] || 0) + 1;
+    }
+  }
+
+  // 手機版基礎字體放大至 15
+  const baseFontSize = isMobile ? 15 : 20; 
+  const fontSizeStep = isMobile ? 6 : 12; 
+  
+  let finalWords = Object.keys(wordCounts).map(word => ({ 
+    text: word, 
+    size: baseFontSize + (wordCounts[word] * fontSizeStep) 
+  }));
+  
+  finalWords.sort((a, b) => b.size - a.size); 
+  
+  // 電腦與手機都限制最高顯示 12 個詞
+  let topWords = finalWords.slice(0, 12);
+
+  if (topWords.length === 0) return;
+
   const oldSky = d3.select("#skyOverlay").select("svg");
-  if (!oldSky.empty()) { oldSky.transition().duration(800).style("opacity", 0).remove().on("end", () => drawNewSky(topWords)); } else { drawNewSky(topWords); }
+  if (!oldSky.empty()) { 
+    oldSky.transition().duration(800).style("opacity", 0).remove().on("end", () => drawNewSky(topWords)); 
+  } else { 
+    drawNewSky(topWords); 
+  }
 }
 
 function drawNewSky(wordsToDraw) {
-  d3.layout.cloud().size([skyWidth, skyHeight]).words(wordsToDraw).padding(isMobile ? 4 : 10).rotate(() => (Math.random() > 0.5 ? 0 : 90)).font("LXGW WenKai TC").fontSize(d => d.size).on("end", renderFadingWords).start();
+  // 碰撞計算使用安全的無襯線體
+  const calcFont = "sans-serif";
+  
+  d3.layout.cloud()
+    .size([skyWidth, skyHeight])
+    .words(wordsToDraw)
+    .padding(isMobile ? 3 : 10)
+    .rotate(() => (Math.random() > 0.5 ? 0 : 90)) // 保留旋轉特效
+    .font(calcFont) 
+    .fontSize(d => d.size)
+    .on("end", renderFadingWords)
+    .start();
 }
 
 function renderFadingWords(words) {
-  const palette = getPalette(); const newSky = d3.select("#skyOverlay").append("svg").attr("width", skyWidth).attr("height", skyHeight).style("opacity", 0);
-  newSky.append("g").attr("transform", "translate(" + skyWidth / 2 + "," + skyHeight / 2 + ")").selectAll("text").data(words).enter().append("text").style("font-size", d => d.size + "px").style("font-family", "'LXGW WenKai TC', cursive").style("font-weight", "400").style("fill", palette.wordCloud).attr("text-anchor", "middle").attr("transform", d => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")").text(d => d.text);
+  const palette = getPalette(); 
+  const newSky = d3.select("#skyOverlay").append("svg").attr("width", skyWidth).attr("height", skyHeight).style("opacity", 0);
+  
+  // 實際渲染時才掛上毛筆字體
+  const renderFontFamily = "'LXGW WenKai TC', sans-serif";
+
+  newSky.append("g")
+    .attr("transform", "translate(" + skyWidth / 2 + "," + skyHeight / 2 + ")")
+    .selectAll("text")
+    .data(words)
+    .enter()
+    .append("text")
+    .style("font-size", d => d.size + "px")
+    .style("font-family", renderFontFamily) 
+    .style("font-weight", "400")
+    .style("fill", palette.wordCloud)
+    .attr("text-anchor", "middle")
+    .attr("transform", d => "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")")
+    .text(d => d.text);
+    
   newSky.transition().duration(800).style("opacity", 1);
 }
 
@@ -293,7 +392,18 @@ db.collection("emocean_bottles").where("createdAt", ">", thirtyDaysAgo).get().th
     const cloudData = doc.data(); mySavedBottles.push(cloudData); 
     nodes.push({ radius: isMobile ? (Math.random() * 1.5 + 3.5) : (Math.random() * 2 + 5), color: cloudData.color || '#ffffff', isInteractive: true, message: cloudData.text || '', baseX: Math.random() * (canvas.width - 80) + 40, baseY: canvas.height * 0.55 + Math.random() * (canvas.height * 0.35), currentX: 0, currentY: 0, isFalling: false, isGlowFading: false, glowIntensity: 0 });
   });
-  updateWordCloud();
+
+  // 強制等待字體
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load('16px "LXGW WenKai TC"').then(() => {
+      updateWordCloud();
+    }).catch(() => {
+      updateWordCloud();
+    });
+  } else {
+    updateWordCloud();
+  }
+
 }).catch(error => console.error(error));
 
 submitBtn.onclick = () => {
@@ -318,7 +428,7 @@ canvas.addEventListener('mousemove', (event) => {
 });
 
 /* ==========================================
-   11. 手機版 UI 專屬互動邏輯 (🌟 完美狀態切換邏輯)
+   11. 手機版 UI 專屬互動邏輯
    ========================================== */
 const viewMsgBtn = document.getElementById('viewMsgBtn');
 const writeMsgBtn = document.getElementById('writeMsgBtn');
@@ -328,23 +438,19 @@ function updateMobileTooltipText(node) {
 }
 
 if (isMobile) {
-  // 🌟 點擊齒輪時：底部選單和齒輪自己都消失，打開面板
   settingBtn.addEventListener('click', (e) => { 
     e.stopPropagation(); dimOverlay.classList.remove('hidden'); settingBtn.classList.add('hidden'); mobileBottomBar.classList.add('hidden'); dpadPanel.classList.add('hidden'); settingsPanel.classList.remove('hidden'); mobileState = 'settings'; 
   });
   
-  // 🌟 點擊外圍空白處：收起所有面板，齒輪與底部選單一起重新出現
   dimOverlay.addEventListener('click', () => { 
     settingsPanel.classList.add('hidden'); inputContent.classList.add('hidden'); dimOverlay.classList.add('hidden'); 
     settingBtn.classList.remove('hidden'); mobileBottomBar.classList.remove('hidden'); mobileState = 'bottomBar'; resetInputPanel(); 
   });
   
-  // 🌟 點擊撰寫留言：底部選單和齒輪一起消失
   writeMsgBtn.addEventListener('click', (e) => { 
     e.stopPropagation(); mobileBottomBar.classList.add('hidden'); settingBtn.classList.add('hidden'); inputContent.classList.remove('hidden'); dimOverlay.classList.remove('hidden'); mobileState = 'writing'; 
   });
   
-  // 🌟 點擊查看留言：底部選單和齒輪一起消失
   viewMsgBtn.addEventListener('click', (e) => { 
     e.stopPropagation(); mobileBottomBar.classList.add('hidden'); dpadPanel.classList.remove('hidden'); settingBtn.classList.add('hidden'); mobileState = 'dpad'; 
     const centerX = canvas.width / 2, centerY = canvas.height / 2; let minDistance = Infinity; nodes.forEach(node => { if (!node.isInteractive) return; const dist = Math.hypot(node.currentX - centerX, node.currentY - centerY); if (dist < minDistance) { minDistance = dist; selectedParticle = node; } }); updateMobileTooltipText(selectedParticle); 

@@ -3,6 +3,16 @@
    ========================================== */
 * { -webkit-tap-highlight-color: transparent; }
 
+/* 🍎 強制預載字體，避免文字雲計算錯誤 */
+body::before {
+  content: "預載字體";
+  font-family: 'LXGW WenKai TC', cursive;
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
 /* ==========================================
    1. 基礎佈局：全域背景與玻璃外框
    ========================================== */
