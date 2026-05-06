@@ -384,12 +384,42 @@ function renderFadingWords(words) {
 }
 
 /* ==========================================
-   8. 海洋畫布與動態音頻波浪引擎
+   8. 海洋畫布與動態音頻波浪引擎 (加入鼠標動力引擎)
    ========================================== */
 const ctx = canvas.getContext('2d');
 function resizeCanvas() { canvas.width = window.innerWidth || document.documentElement.clientWidth || 1024; canvas.height = window.innerHeight || document.documentElement.clientHeight || 768; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 const nodes = []; let time = 0; const tooltip = document.getElementById('tooltip'); const tooltipContent = document.getElementById('tooltipContent');
+
+// 🍎 新增：鼠標動力引擎變數
+let lastMouseX = -1; let lastMouseY = -1; let lastMouseTime = Date.now();
+const BASE_SPEED = 0.0015; // 基礎最低波動速度
+let targetSpeed = BASE_SPEED; 
+let currentSpeed = BASE_SPEED;
+
+// 🍎 新增：電腦版專屬，監聽鼠標移動計算「揮動速度」
+if (!isMobile) {
+  window.addEventListener('mousemove', (e) => {
+    const now = Date.now();
+    const dt = now - lastMouseTime;
+    if (dt > 0 && lastMouseX !== -1) {
+      // 算出兩點之間的距離
+      const distance = Math.hypot(e.clientX - lastMouseX, e.clientY - lastMouseY);
+      const velocity = distance / dt; // 計算速度 (像素/毫秒)
+      
+      // 將速度轉換為海浪加速力道，並設定最高速度上限為 0.015 (約原本10倍)
+      const speedBump = Math.min(velocity * 0.002, 0.015);
+      
+      // 只有當新速度大於當前目標速度時才加速 (讓加速敏銳，減速平滑)
+      if (BASE_SPEED + speedBump > targetSpeed) {
+        targetSpeed = BASE_SPEED + speedBump;
+      }
+    }
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    lastMouseTime = now;
+  });
+}
 
 function hexToRgb(hex) {
   if (!hex || typeof hex !== 'string') return null; 
@@ -399,12 +429,33 @@ function hexToRgb(hex) {
 
 function drawWave() {
   try {
-    time += 0.0015; ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // 🍎 這裡就是控制慣性與平復時間的地方！
+    if (!isMobile) {
+      // 1. 摩擦力（平復速度）：原本是 0.03。
+      // 數字越「小」，海浪平復得越「慢」！我幫你改成了 0.005，餘波會維持非常久。
+      targetSpeed += (BASE_SPEED - targetSpeed) * 0.005; 
+      
+      // 2. 緩動（視覺平滑度）：讓當前速度追上目標速度的係數。
+      // 原本是 0.1，我幫你稍微降到 0.05，這樣加速跟減速都會更有水體的「沉重感」。
+      currentSpeed += (targetSpeed - currentSpeed) * 0.05; 
+    } else {
+      // 手機版強制鎖定最低速度
+      currentSpeed = BASE_SPEED;
+    }
+
+    // 將動態計算出的速度加到總時間上
+    time += currentSpeed; 
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // ... 下方的 let bassAvg = 0; 等等程式碼都保持原樣不變 ...
+    
     let bassAvg = 0; let highAvg = 0; 
     if (audioCtx && currentTrackIndex !== -1 && dataArray) {
       analyser.getByteFrequencyData(dataArray); 
       let bassSum = 0; for(let i=0; i<10; i++) bassSum += dataArray[i]; bassAvg = bassSum / 10;
-      let highSum = 0; for(let i=50; i<120; i++) highSum += dataArray[i]; highAvg = highSum / 70; time += (bassAvg / 255) * 0.0015; 
+      let highSum = 0; for(let i=50; i<120; i++) highSum += dataArray[i]; highAvg = highSum / 70; 
+      // 音樂的 Bass 節奏也能疊加加速海浪
+      time += (bassAvg / 255) * 0.0015; 
     }
     nodes.forEach((node, index) => {
       try {
