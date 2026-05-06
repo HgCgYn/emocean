@@ -66,41 +66,46 @@ let selectedParticle = null;
 let audioCtx; let analyser; let dataArray; let tracks = []; let currentTrackIndex = -1; 
 
 /* ==========================================
-   4. 全域背景點擊事件與初始進入設定
+   4. 全域背景點擊事件與初始進入設定 (加入圓形擴散動畫)
    ========================================== */
-startScreen.addEventListener('click', () => {
-  startScreen.style.opacity = '0';
-  setTimeout(() => { startScreen.style.display = 'none'; }, 500);
-  
-  if (isMobile) {
-    settingBtn.classList.remove('hidden');
-    mobileBottomBar.classList.remove('hidden');
-    mobileState = 'bottomBar';
-  } else {
-    document.getElementById('controlWrapper').classList.remove('hidden');
-    musicControlWrapper.classList.remove('hidden');
-    desktopUIState = 'visible';
-  }
-});
+startScreen.addEventListener('click', (e) => {
+  // 1. 取得滑鼠或手指點擊的座標
+  const x = e.clientX || window.innerWidth / 2;
+  const y = e.clientY || window.innerHeight / 2;
 
-canvas.addEventListener('click', () => {
-  if (isMobile) {
-    if (mobileState === 'dpad') {
-      dpadPanel.classList.add('hidden'); document.getElementById('tooltip').style.display = 'none'; mobileState = 'bottomBar';  
-      mobileBottomBar.classList.remove('hidden'); settingBtn.classList.remove('hidden'); selectedParticle = null; 
-    } else if (mobileState === 'idle') {
-      mobileBottomBar.classList.remove('hidden'); settingBtn.classList.remove('hidden'); mobileState = 'bottomBar';
-    } else if (mobileState === 'bottomBar') {
-      mobileBottomBar.classList.add('hidden'); settingBtn.classList.add('hidden'); mobileState = 'idle';
-    }
-  } else {
-    const wrapper = document.getElementById('controlWrapper');
-    if (desktopUIState === 'hidden') {
-      wrapper.classList.remove('hidden'); musicControlWrapper.classList.remove('hidden'); desktopUIState = 'visible';
+  // 2. 定義進入遊戲的核心邏輯
+  const enterGame = () => {
+    startScreen.style.display = 'none'; // 隱藏迎賓布幕
+    
+    if (isMobile) {
+      settingBtn.classList.remove('hidden');
+      mobileBottomBar.classList.remove('hidden');
+      mobileState = 'bottomBar';
     } else {
-      wrapper.classList.add('hidden'); musicControlWrapper.classList.add('hidden'); desktopUIState = 'hidden'; 
+      document.getElementById('controlWrapper').classList.remove('hidden');
+      musicControlWrapper.classList.remove('hidden');
+      desktopUIState = 'visible';
     }
+  };
+
+  // 3. 檢查瀏覽器是否支援 View Transition 動畫
+  const enableTransitions = 'startViewTransition' in document && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (!enableTransitions) {
+    // Fallback: 如果瀏覽器太舊，就維持原本的淡出效果
+    startScreen.style.opacity = '0';
+    setTimeout(enterGame, 500);
+    return;
   }
+
+  // 4. 設定 CSS 變數（共用我們先前寫好的 --darkX 和 --darkY 圓心座標）
+  document.documentElement.style.setProperty('--darkX', `${x}px`);
+  document.documentElement.style.setProperty('--darkY', `${y}px`);
+
+  // 🚀 5. 啟動截圖擴散動畫！
+  document.startViewTransition(() => {
+    enterGame();
+  });
 });
 
 /* ==========================================
