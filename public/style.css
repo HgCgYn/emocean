@@ -99,8 +99,7 @@ body.light-mode #startScreen p { color: rgba(0, 0, 0, 0.7); text-shadow: 0px 2px
   #inputContent { width: 320px; padding: 20px; }
   #musicCapsule { width: max-content; height: 64px; padding: 10px 15px; display: flex; align-items: center; gap: 10px; flex-direction: row; }
 
-  #musicControlWrapper { position: absolute; bottom: 15px; right: 15px; z-index: 10; display: flex; justify-content: flex-end; align-items: flex-end; }
-  #musicGroup .morph-btn { left: auto; right: 0; }
+  #musicControlWrapper { position: absolute; bottom: 15px; right: 15px; z-index: 10; display: flex; justify-content: flex-end; align-items: flex-end; gap: 15px; }  #musicGroup .morph-btn { left: auto; right: 0; }
   #musicGroup .morph-panel { transform: translateX(20px) scale(0.95); padding-right: 64px; }
   #musicGroup.expanded .morph-panel { transform: translateX(0) scale(1); padding-right: 15px; }
 }

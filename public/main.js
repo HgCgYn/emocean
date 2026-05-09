@@ -105,6 +105,12 @@ startScreen.addEventListener('click', (e) => {
   // 🚀 5. 啟動截圖擴散動畫！
   document.startViewTransition(() => {
     enterGame();
+
+  // 🍎 6. 電腦版進入遊戲時，順便向使用者請求麥克風權限
+  if (!isMobile) {
+    initMic();
+  }
+  
   });
 });
 
@@ -429,34 +435,26 @@ function hexToRgb(hex) {
 
 function drawWave() {
   try {
-    // 🍎 這裡就是控制慣性與平復時間的地方！
     if (!isMobile) {
-      // 1. 摩擦力（平復速度）：原本是 0.03。
-      // 數字越「小」，海浪平復得越「慢」！我幫你改成了 0.005，餘波會維持非常久。
-      targetSpeed += (BASE_SPEED - targetSpeed) * 0.005; 
-      
-      // 2. 緩動（視覺平滑度）：讓當前速度追上目標速度的係數。
-      // 原本是 0.1，我幫你稍微降到 0.05，這樣加速跟減速都會更有水體的「沉重感」。
-      currentSpeed += (targetSpeed - currentSpeed) * 0.05; 
+      targetSpeed += (BASE_SPEED - targetSpeed) * 0.005;
+      currentSpeed += (targetSpeed - currentSpeed) * 0.05;
     } else {
-      // 手機版強制鎖定最低速度
       currentSpeed = BASE_SPEED;
     }
 
-    // 將動態計算出的速度加到總時間上
     time += currentSpeed; 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // ... 下方的 let bassAvg = 0; 等等程式碼都保持原樣不變 ...
-    
     let bassAvg = 0; let highAvg = 0; 
-    if (audioCtx && currentTrackIndex !== -1 && dataArray) {
+    
+    // 🍎 修正 1：拔除 currentTrackIndex !== -1 的限制！只要有音訊(麥克風或音樂)，就開始分析波形
+    if (audioCtx && dataArray) {
       analyser.getByteFrequencyData(dataArray); 
       let bassSum = 0; for(let i=0; i<10; i++) bassSum += dataArray[i]; bassAvg = bassSum / 10;
       let highSum = 0; for(let i=50; i<120; i++) highSum += dataArray[i]; highAvg = highSum / 70; 
-      // 音樂的 Bass 節奏也能疊加加速海浪
       time += (bassAvg / 255) * 0.0015; 
     }
+    
     nodes.forEach((node, index) => {
       try {
         node.radius = node.radius || 5; node.baseX = node.baseX || (canvas.width / 2); node.baseY = node.baseY || (canvas.height / 2); node.color = node.color || '#ffffff';
@@ -469,10 +467,18 @@ function drawWave() {
         }
 
         let pulseScale = 1; let auraRadius = 0; let flashOpacity = 0; let nodeMidValue = 0;
-        if (currentTrackIndex !== -1 && dataArray) {
-          nodeMidValue = dataArray[10 + (index % 40)] || 0; const sensitivity = 0.7 + ((index * 13) % 10) * 0.06; pulseScale = 1 + Math.pow(nodeMidValue / 255, 3) * (1.8 * sensitivity); const bassRatio = bassAvg / 255;
-          if (bassRatio > 0.3) { auraRadius = node.radius * pulseScale + (bassRatio * 35 * sensitivity); }
-          const flashThreshold = 0.2 + ((index * 7) % 10) * 0.015; if (highAvg / 255 > flashThreshold) { flashOpacity = Math.min((highAvg / 255 - flashThreshold) * 2.5, 0.95); }
+        
+        // 🍎 修正 2：同樣拔除限制，讓粒子無條件跟隨 analyser 的數據跳動
+        if (audioCtx && dataArray) {
+          nodeMidValue = dataArray[10 + (index % 40)] || 0; 
+          const sensitivity = 0.7 + ((index * 13) % 10) * 0.06; 
+          
+          // 🍎 優化敏感度：把三次方改成二次方，讓說話的聲音也能引發明顯的粒子膨脹
+          pulseScale = 1 + Math.pow(nodeMidValue / 255, 2) * (2.5 * sensitivity); 
+          const bassRatio = bassAvg / 255;
+          if (bassRatio > 0.2) { auraRadius = node.radius * pulseScale + (bassRatio * 35 * sensitivity); }
+          const flashThreshold = 0.2 + ((index * 7) % 10) * 0.015; 
+          if (highAvg / 255 > flashThreshold) { flashOpacity = Math.min((highAvg / 255 - flashThreshold) * 2.5, 0.95); }
         }
 
         const currentRadius = Math.abs(node.radius * pulseScale); const rgb = hexToRgb(node.color);
@@ -484,7 +490,7 @@ function drawWave() {
 
         let finalBlur = 0;
         if (node.isGlowFading) { node.glowIntensity -= 0.15; if (node.glowIntensity <= 0) { node.isGlowFading = false; node.glowIntensity = 0; } finalBlur = node.glowIntensity; }
-        if (finalBlur > 0 || (currentTrackIndex !== -1 && nodeMidValue > 20)) { ctx.shadowColor = node.color; ctx.shadowBlur = Math.max(finalBlur, (nodeMidValue / 255) * 15); } else { ctx.shadowBlur = 0; }
+        if (finalBlur > 0 || (audioCtx && nodeMidValue > 20)) { ctx.shadowColor = node.color; ctx.shadowBlur = Math.max(finalBlur, (nodeMidValue / 255) * 15); } else { ctx.shadowBlur = 0; }
 
         ctx.beginPath(); ctx.arc(node.currentX, node.currentY, currentRadius, 0, Math.PI * 2); ctx.fillStyle = node.color; ctx.fill();
 
@@ -600,22 +606,125 @@ if (isMobile) {
 }
 
 /* ==========================================
-   13. 🎵 Web Audio API 音樂燈光秀引擎
+   13. 🎵 Web Audio API 音樂與麥克風互動引擎 (放大器升級版)
    ========================================== */
+let isAudioInitialized = false;
+let isMicEnabled = true;  
+let micStream = null;
+let micSource = null;
+let micGainNode = null; // 🍎 新增：麥克風專用的訊號放大器
+
 const trackSources = [ './audio/track1.mp3', './audio/track2.mp3', './audio/track3.mp3', './audio/track4.mp3', './audio/track5.mp3', './audio/track6.mp3' ];
-function initAudio() {
-  if (audioCtx) return; 
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)(); analyser = audioCtx.createAnalyser(); analyser.fftSize = 256; 
-  const bufferLength = analyser.frequencyBinCount; dataArray = new Uint8Array(bufferLength);
-  trackSources.forEach(src => { const audio = new Audio(src); audio.crossOrigin = "anonymous"; audio.loop = true; const source = audioCtx.createMediaElementSource(audio); source.connect(analyser); tracks.push(audio); });
-  analyser.connect(audioCtx.destination);
+
+function updateMicIcon() {
+  const isActuallyMuted = !isMicEnabled || currentTrackIndex !== -1;
+  if (isActuallyMuted) {
+    micIconOn.classList.add('hidden'); micIconOff.classList.remove('hidden'); micBtn.style.opacity = '0.5';
+  } else {
+    micIconOn.classList.remove('hidden'); micIconOff.classList.add('hidden'); micBtn.style.opacity = '1';
+  }
 }
+
+async function initMic() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+  }
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    micSource = audioCtx.createMediaStreamSource(micStream);
+    
+    // 🍎 建立放大器：將麥克風的微弱訊號放大 5 倍！
+    micGainNode = audioCtx.createGain();
+    micGainNode.gain.value = 5; 
+    
+    // 管線連接：麥克風 -> 放大器
+    micSource.connect(micGainNode);
+
+    if (isMicEnabled && currentTrackIndex === -1) {
+      // 管線連接：放大器 -> 特效分析
+      micGainNode.connect(analyser);
+    }
+    updateMicIcon(); 
+  } catch (err) {
+    isMicEnabled = false;
+    updateMicIcon();
+  }
+}
+
+function initAudio() {
+  if (isAudioInitialized) return; 
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+    analyser = audioCtx.createAnalyser(); 
+    analyser.fftSize = 256; 
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+  }
+  trackSources.forEach(src => { 
+    const audio = new Audio(src); 
+    audio.crossOrigin = "anonymous"; 
+    audio.loop = true; 
+    const source = audioCtx.createMediaElementSource(audio); 
+    source.connect(analyser);             
+    source.connect(audioCtx.destination); 
+    tracks.push(audio); 
+  });
+  isAudioInitialized = true;
+}
+
+const micBtn = document.getElementById('micBtn');
+const micIconOn = document.getElementById('micIconOn');
+const micIconOff = document.getElementById('micIconOff');
+
+if (micBtn) {
+  micBtn.addEventListener('click', () => {
+    if (currentTrackIndex !== -1) return; 
+
+    isMicEnabled = !isMicEnabled;
+    if (micGainNode) {
+      // 🍎 改用 micGainNode 來控制連接與斷開
+      if (isMicEnabled) micGainNode.connect(analyser);
+      else try { micGainNode.disconnect(); } catch(e){}
+    } else if (isMicEnabled) {
+      initMic();
+    }
+    updateMicIcon();
+  });
+}
+
 const musicBtns = document.querySelectorAll('.music-mode-btn');
 musicBtns.forEach((btn, index) => {
   btn.addEventListener('click', () => {
-    initAudio(); if (audioCtx.state === 'suspended') audioCtx.resume();
-    if (currentTrackIndex === index) { tracks[index].pause(); btn.classList.remove('playing'); currentTrackIndex = -1; return; }
-    tracks.forEach(track => track.pause()); musicBtns.forEach(b => b.classList.remove('playing'));
-    tracks[index].currentTime = 0; tracks[index].play(); btn.classList.add('playing'); currentTrackIndex = index;
+    initAudio(); 
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    
+    if (currentTrackIndex === index) { 
+      tracks[index].pause(); 
+      btn.classList.remove('playing'); 
+      currentTrackIndex = -1; 
+      
+      // 🎶 音樂結束：接回放大器
+      if (isMicEnabled && micGainNode) {
+        micGainNode.connect(analyser);
+      }
+      updateMicIcon(); 
+      return; 
+    }
+    
+    // 🎶 播放新音樂前：切斷放大器
+    if (micGainNode) {
+      try { micGainNode.disconnect(); } catch(e) {}
+    }
+
+    tracks.forEach(track => track.pause()); 
+    musicBtns.forEach(b => b.classList.remove('playing'));
+    tracks[index].currentTime = 0; 
+    tracks[index].play(); 
+    btn.classList.add('playing'); 
+    currentTrackIndex = index;
+    
+    updateMicIcon(); 
   });
 });
