@@ -447,7 +447,6 @@ function drawWave() {
     
     let bassAvg = 0; let highAvg = 0; 
     
-    // 🍎 修正 1：拔除 currentTrackIndex !== -1 的限制！只要有音訊(麥克風或音樂)，就開始分析波形
     if (audioCtx && dataArray) {
       analyser.getByteFrequencyData(dataArray); 
       let bassSum = 0; for(let i=0; i<10; i++) bassSum += dataArray[i]; bassAvg = bassSum / 10;
@@ -468,12 +467,9 @@ function drawWave() {
 
         let pulseScale = 1; let auraRadius = 0; let flashOpacity = 0; let nodeMidValue = 0;
         
-        // 🍎 修正 2：同樣拔除限制，讓粒子無條件跟隨 analyser 的數據跳動
         if (audioCtx && dataArray) {
           nodeMidValue = dataArray[10 + (index % 40)] || 0; 
           const sensitivity = 0.7 + ((index * 13) % 10) * 0.06; 
-          
-          // 🍎 優化敏感度：把三次方改成二次方，讓說話的聲音也能引發明顯的粒子膨脹
           pulseScale = 1 + Math.pow(nodeMidValue / 255, 2) * (2.5 * sensitivity); 
           const bassRatio = bassAvg / 255;
           if (bassRatio > 0.2) { auraRadius = node.radius * pulseScale + (bassRatio * 35 * sensitivity); }
@@ -481,7 +477,9 @@ function drawWave() {
           if (highAvg / 255 > flashThreshold) { flashOpacity = Math.min((highAvg / 255 - flashThreshold) * 2.5, 0.95); }
         }
 
-        const currentRadius = Math.abs(node.radius * pulseScale); const rgb = hexToRgb(node.color);
+        // 🍎 注意這裡把 const 改成 let 了，為了等等滑鼠靠近時能微調大小
+        let currentRadius = Math.abs(node.radius * pulseScale); 
+        const rgb = hexToRgb(node.color);
         if (auraRadius > currentRadius && rgb) {
           ctx.beginPath(); ctx.arc(node.currentX, node.currentY, auraRadius, 0, Math.PI * 2); const gradient = ctx.createRadialGradient(node.currentX, node.currentY, currentRadius, node.currentX, node.currentY, auraRadius);
           gradient.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${0.6 * (bassAvg/255)})`); gradient.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);                      
@@ -490,6 +488,23 @@ function drawWave() {
 
         let finalBlur = 0;
         if (node.isGlowFading) { node.glowIntensity -= 0.15; if (node.glowIntensity <= 0) { node.isGlowFading = false; node.glowIntensity = 0; } finalBlur = node.glowIntensity; }
+        
+        // 🍎 核心邏輯：滑鼠靠近時發光特效
+        if (!isMobile && currentTrackIndex === -1 && lastMouseX !== -1) {
+          // 算出游標跟這個粒子的直線距離
+          const distToMouse = Math.hypot(node.currentX - lastMouseX, node.currentY - lastMouseY);
+          const hoverRange = 120; // 影響範圍設定為 120px 內
+          
+          if (distToMouse < hoverRange) {
+            // 距離越近，(1 - 距離/範圍) 就越接近 1。乘上最高發光強度 25
+            const hoverGlow = (1 - distToMouse / hoverRange) * 25;
+            finalBlur = Math.max(finalBlur, hoverGlow);
+            
+            // 順便加個小巧思：游標靠近時，粒子除了發光，還會稍微膨脹一點點，增加生命力！
+            currentRadius += (1 - distToMouse / hoverRange) * 1.5;
+          }
+        }
+
         if (finalBlur > 0 || (audioCtx && nodeMidValue > 20)) { ctx.shadowColor = node.color; ctx.shadowBlur = Math.max(finalBlur, (nodeMidValue / 255) * 15); } else { ctx.shadowBlur = 0; }
 
         ctx.beginPath(); ctx.arc(node.currentX, node.currentY, currentRadius, 0, Math.PI * 2); ctx.fillStyle = node.color; ctx.fill();
