@@ -527,8 +527,8 @@ drawWave();
 /* ==========================================
    9. 雲端連線：撈取與提交
    ========================================== */
-const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-db.collection("emocean_bottles").where("createdAt", ">", thirtyDaysAgo).get().then((querySnapshot) => {
+const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+db.collection("emocean_bottles").where("createdAt", ">", sevenDaysAgo).get().then((querySnapshot) => {
   querySnapshot.forEach((doc) => {
     const cloudData = doc.data(); mySavedBottles.push(cloudData);
     nodes.push({ radius: isMobile ? (Math.random() * 1.5 + 3.5) : (Math.random() * 2 + 5), color: cloudData.color || '#ffffff', isInteractive: true, message: cloudData.text || '', baseX: Math.random() * (canvas.width - 80) + 40, baseY: canvas.height * 0.55 + Math.random() * (canvas.height * 0.35), currentX: 0, currentY: 0, isFalling: false, isGlowFading: false, glowIntensity: 0 });
