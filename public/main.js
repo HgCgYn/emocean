@@ -651,9 +651,9 @@ async function initMic() {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     micSource = audioCtx.createMediaStreamSource(micStream);
     
-    // 🍎 建立放大器：將麥克風的微弱訊號放大 5 倍！
+    // 🍎 建立放大器：將麥克風的微弱訊號放大 (原為 5 倍，稍微調低為 3 倍)
     micGainNode = audioCtx.createGain();
-    micGainNode.gain.value = 5; 
+    micGainNode.gain.value = 3; 
     
     // 管線連接：麥克風 -> 放大器
     micSource.connect(micGainNode);
