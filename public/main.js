@@ -1,5 +1,5 @@
 /* ==========================================
-   1. 初始化與配色地圖 
+   1. Initialization & Color Palette 
    ========================================== */
 const firebaseConfig = {
   apiKey: "AIzaSyBiMK_yi-GUEYHAVGsoz3ugOoMmFEFtD5g",
@@ -21,7 +21,7 @@ const LIGHT_COLOR_PALETTE = { oceanBase: '#5881be', wordCloud: 'rgba(30, 40, 80,
 function getPalette() { return currentTheme === 'dark' ? DARK_COLOR_PALETTE : LIGHT_COLOR_PALETTE; }
 
 /* ==========================================
-   2. 情緒字典
+   2. Emotion Dictionary
    ========================================== */
 const emotions = [
   { name: '開心', color: '#FDE600', placeholder: '今天發票中了1000萬啦！' },
@@ -36,7 +36,7 @@ const emotions = [
 ];
 
 /* ==========================================
-   3. 面板與 UI 狀態變數
+   3. Panel & UI State Variables
    ========================================= */
 const startScreen = document.getElementById('startScreen');
 const settingBtn = document.getElementById('settingBtn');
@@ -66,16 +66,16 @@ let selectedParticle = null;
 let audioCtx; let analyser; let dataArray; let tracks = []; let currentTrackIndex = -1;
 
 /* ==========================================
-   4. 全域背景點擊事件與初始進入設定
+   4. Global Background Click Events & Initial Setup
    ========================================== */
 startScreen.addEventListener('click', (e) => {
-  // 1. 取得滑鼠或手指點擊的座標
+  // 1. Get the coordinates of the mouse or touch click
   const x = e.clientX || window.innerWidth / 2;
   const y = e.clientY || window.innerHeight / 2;
 
-  // 2. 定義進入遊戲的核心邏輯
+  // 2. Define the core logic for entering the application
   const enterGame = () => {
-    startScreen.style.display = 'none'; // 隱藏迎賓布幕
+    startScreen.style.display = 'none'; // Hide the welcome screen
 
     if (isMobile) {
       settingBtn.classList.remove('hidden');
@@ -86,38 +86,39 @@ startScreen.addEventListener('click', (e) => {
       musicControlWrapper.classList.remove('hidden');
       desktopUIState = 'visible';
     }
+
+    // NOTE: Sync mic icon with the default isMicEnabled = false state on entry
+    updateMicIcon();
   };
 
-  // 3. 檢查瀏覽器是否支援 View Transition 動畫
+  // 3. Check if the browser supports View Transition animations
   const enableTransitions = 'startViewTransition' in document && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   if (!enableTransitions) {
-    // Fallback: 如果瀏覽器太舊，就維持原本的淡出效果
+    // Fallback: Maintain the original fade-out effect for older browsers
     startScreen.style.opacity = '0';
     setTimeout(enterGame, 500);
     return;
   }
 
-  // 4. 設定 CSS 變數（共用我們先前寫好的 --darkX 和 --darkY 圓心座標）
+  // 4. Set CSS variables (reuse our previously defined --darkX and --darkY center coordinates)
   document.documentElement.style.setProperty('--darkX', `${x}px`);
   document.documentElement.style.setProperty('--darkY', `${y}px`);
 
-  // 🚀 5. 啟動截圖擴散動畫！
+  // 🚀 5. Trigger the expanding ripple animation!
   document.startViewTransition(() => {
     enterGame();
-
-    // 🍎 6. 電腦版進入遊戲時，順便向使用者請求麥克風權限
-    if (!isMobile) {
-      initMic();
-    }
-
+    // NOTE: Mic is NOT auto-initialized here on purpose.
+    // Auto-calling getUserMedia on entry triggers Windows' "Communication Device Mode",
+    // which hijacks the AudioContext destination routing and silences music playback.
+    // The user must click the mic button manually to enable mic input.
   });
 });
 
-// 🌟 畫布點擊邏輯（瘦身版：現在專心負責「隱藏/顯示」平常的底部選單就好）
+// 🌟 Canvas click logic (simplified: now strictly handles toggling the bottom menu)
 canvas.addEventListener('click', () => {
   if (isMobile) {
-    // 移除了 dpad 的判斷，因為關閉 D-pad 已經交給 dimOverlay 處理了
+    // Removed D-pad checks since dimOverlay now handles closing it
     if (mobileState === 'idle') {
       mobileBottomBar.classList.remove('hidden'); settingBtn.classList.remove('hidden'); mobileState = 'bottomBar';
     } else if (mobileState === 'bottomBar') {
@@ -134,7 +135,7 @@ canvas.addEventListener('click', () => {
 });
 
 /* ==========================================
-   5. 面板 Hover 型態切換邏輯
+   5. Panel Hover State Transition Logic
    ========================================= */
 const closePenPanel = () => {
   if (isMobile) {
@@ -192,7 +193,7 @@ function resetInputPanel() {
 }
 
 /* ==========================================
-   6. 配色切換 (統一向外擴散動畫)
+   6. Theme Switching (Unified Outward Expanding Animation)
    ========================================== */
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 let isThemeSwitching = false;
@@ -209,11 +210,11 @@ themeToggleBtn.addEventListener('click', (e) => {
   themeToggleBtn.style.opacity = '0.5';
   themeToggleBtn.style.pointerEvents = 'none';
 
-  // 取得滑鼠點擊（或手指觸控）的 X 與 Y 座標
+  // Get the X and Y coordinates of the mouse or touch click
   const x = e.clientX || window.innerWidth / 2;
   const y = e.clientY || window.innerHeight / 2;
 
-  // 切換核心邏輯 (移除了原先複雜的 classList 判斷)
+  // Core toggle logic (removed the previously complex classList checks)
   const toggleTheme = () => {
     if (currentTheme === 'dark') {
       currentTheme = 'light';
@@ -224,7 +225,7 @@ themeToggleBtn.addEventListener('click', (e) => {
       document.body.classList.remove('light-mode');
       themeToggleBtn.innerText = '亮色模式';
     }
-    updateWordCloud(); // 重新繪製文字雲
+    updateWordCloud(); // Redraw the word cloud
   };
 
   const enableTransitions = 'startViewTransition' in document && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -239,11 +240,11 @@ themeToggleBtn.addEventListener('click', (e) => {
     return;
   }
 
-  // 設定 CSS 變數，告訴 CSS 圓心在哪裡
+  // Set CSS variables to define the animation's center point
   document.documentElement.style.setProperty('--darkX', `${x}px`);
   document.documentElement.style.setProperty('--darkY', `${y}px`);
 
-  // 啟動動畫
+  // Trigger the animation
   const transition = document.startViewTransition(() => {
     toggleTheme();
   });
@@ -256,7 +257,7 @@ themeToggleBtn.addEventListener('click', (e) => {
 });
 
 /* ==========================================
-   7. NLP 終極無敵版：跨語系借用 + N-gram 智慧回退
+   7. Ultimate NLP: Cross-language borrowing + Smart N-gram fallback
    ========================================== */
 const skyWidth = window.innerWidth, skyHeight = window.innerHeight * 0.4; let mySavedBottles = [];
 
@@ -275,13 +276,13 @@ function updateWordCloud() {
   let hasSegmenter = false;
   let segmenter = null;
 
-  // 🍎 終極秘訣：借用 'zh-CN' 字典！
-  // Android 的 WebView 常常閹割 zh-TW 字典，但 zh-CN 通常都在，且能完美識別繁體字！
+  // 🍎 The ultimate trick: Borrowing the 'zh-CN' dictionary!
+  // Android WebViews often strip the zh-TW dictionary, but zh-CN is usually available and recognizes Traditional Chinese perfectly!
   if (typeof Intl !== 'undefined' && Intl.Segmenter) {
     try {
       segmenter = new Intl.Segmenter('zh-CN', { granularity: 'word' });
       const testSeg = Array.from(segmenter.segment("測試"));
-      // 如果沒有被切碎成長度為 1，代表字典是健康的
+      // If it's not broken down into lengths of 1, the dictionary is healthy
       if (testSeg.length === 1 && testSeg[0].segment === "測試") {
         hasSegmenter = true;
       }
@@ -299,18 +300,18 @@ function updateWordCloud() {
         processWord(segment, wordCounts);
       }
     } else {
-      // 🍎 N-gram 智慧滑動切詞 (針對超舊手機的終極後備方案)
-      // 把句子中的標點符號換成空白，只留中文
+      // 🍎 Smart N-gram sliding segmentation (Ultimate fallback for very old phones)
+      // Replace punctuation with spaces, keeping only Chinese characters
       const cleanText = text.replace(/[^\u4E00-\u9FA5]/g, " ");
       const sentences = cleanText.split(/\s+/);
 
       sentences.forEach(sentence => {
         if (sentence.length >= 2) {
-          // 滑動抓取所有連續的 2 字詞 (Bi-gram)
+          // Sliding window to capture all continuous 2-character words (Bi-gram)
           for (let i = 0; i < sentence.length - 1; i++) {
             processWord(sentence.substr(i, 2), wordCounts);
           }
-          // 滑動抓取所有連續的 3 字詞 (Tri-gram)
+          // Sliding window to capture all continuous 3-character words (Tri-gram)
           for (let i = 0; i < sentence.length - 2; i++) {
             processWord(sentence.substr(i, 3), wordCounts);
           }
@@ -327,7 +328,7 @@ function updateWordCloud() {
     }
   }
 
-  // 手機版基礎字體放大至 15
+  // Increase base font size to 15 for mobile
   const baseFontSize = isMobile ? 15 : 20;
   const fontSizeStep = isMobile ? 6 : 12;
 
@@ -338,7 +339,7 @@ function updateWordCloud() {
 
   finalWords.sort((a, b) => b.size - a.size);
 
-  // 電腦與手機都限制最高顯示 12 個詞
+  // Limit to a maximum of 12 words for both desktop and mobile
   let topWords = finalWords.slice(0, 12);
 
   if (topWords.length === 0) return;
@@ -352,14 +353,14 @@ function updateWordCloud() {
 }
 
 function drawNewSky(wordsToDraw) {
-  // 碰撞計算使用安全的無襯線體
+  // Use a safe sans-serif font for collision calculations
   const calcFont = "sans-serif";
 
   d3.layout.cloud()
     .size([skyWidth, skyHeight])
     .words(wordsToDraw)
     .padding(isMobile ? 3 : 10)
-    .rotate(() => (Math.random() > 0.5 ? 0 : 90)) // 保留旋轉特效
+    .rotate(() => (Math.random() > 0.5 ? 0 : 90)) // Keep the rotation effect
     .font(calcFont)
     .fontSize(d => d.size)
     .on("end", renderFadingWords)
@@ -370,7 +371,7 @@ function renderFadingWords(words) {
   const palette = getPalette();
   const newSky = d3.select("#skyOverlay").append("svg").attr("width", skyWidth).attr("height", skyHeight).style("opacity", 0);
 
-  // 實際渲染時才掛上毛筆字體
+  // Apply the brush font only during actual rendering
   const renderFontFamily = "'LXGW WenKai TC', sans-serif";
 
   newSky.append("g")
@@ -391,33 +392,33 @@ function renderFadingWords(words) {
 }
 
 /* ==========================================
-   8. 海洋畫布與動態音頻波浪引擎 (加入鼠標動力引擎)
+   8. Ocean Canvas & Dynamic Audio Wave Engine (with Mouse Dynamics)
    ========================================== */
 const ctx = canvas.getContext('2d');
 function resizeCanvas() { canvas.width = window.innerWidth || document.documentElement.clientWidth || 1024; canvas.height = window.innerHeight || document.documentElement.clientHeight || 768; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 const nodes = []; let time = 0; const tooltip = document.getElementById('tooltip'); const tooltipContent = document.getElementById('tooltipContent');
 
-// 🍎 新增：鼠標動力引擎變數
+// 🍎 New: Mouse dynamics engine variables
 let lastMouseX = -1; let lastMouseY = -1; let lastMouseTime = Date.now();
-const BASE_SPEED = 0.0015; // 基礎最低波動速度
+const BASE_SPEED = 0.0015; // Base minimum wave speed
 let targetSpeed = BASE_SPEED;
 let currentSpeed = BASE_SPEED;
 
-// 🍎 新增：電腦版專屬，監聽鼠標移動計算「揮動速度」
+// 🍎 New: Desktop only, track mouse movement to calculate "swipe speed"
 if (!isMobile) {
   window.addEventListener('mousemove', (e) => {
     const now = Date.now();
     const dt = now - lastMouseTime;
     if (dt > 0 && lastMouseX !== -1) {
-      // 算出兩點之間的距離
+      // Calculate the distance between two points
       const distance = Math.hypot(e.clientX - lastMouseX, e.clientY - lastMouseY);
-      const velocity = distance / dt; // 計算速度 (像素/毫秒)
+      const velocity = distance / dt; // Calculate velocity (pixels/ms)
 
-      // 將速度轉換為海浪加速力道，並設定最高速度上限為 0.015 (約原本10倍)
+      // Convert velocity to wave acceleration, capping max speed at 0.015 (approx. 10x normal)
       const speedBump = Math.min(velocity * 0.002, 0.015);
 
-      // 只有當新速度大於當前目標速度時才加速 (讓加速敏銳，減速平滑)
+      // Only accelerate if the new speed exceeds the target (makes acceleration sharp, deceleration smooth)
       if (BASE_SPEED + speedBump > targetSpeed) {
         targetSpeed = BASE_SPEED + speedBump;
       }
@@ -478,7 +479,7 @@ function drawWave() {
           if (highAvg / 255 > flashThreshold) { flashOpacity = Math.min((highAvg / 255 - flashThreshold) * 2.5, 0.95); }
         }
 
-        // 🍎 注意這裡把 const 改成 let 了，為了等等滑鼠靠近時能微調大小
+        // 🍎 Note: changed from const to let here to allow size adjustments when hovering
         let currentRadius = Math.abs(node.radius * pulseScale);
         const rgb = hexToRgb(node.color);
         if (auraRadius > currentRadius && rgb) {
@@ -490,18 +491,18 @@ function drawWave() {
         let finalBlur = 0;
         if (node.isGlowFading) { node.glowIntensity -= 0.15; if (node.glowIntensity <= 0) { node.isGlowFading = false; node.glowIntensity = 0; } finalBlur = node.glowIntensity; }
 
-        // 🍎 核心邏輯：滑鼠靠近時發光特效
+        // 🍎 Core logic: Glow effect when mouse hovers near
         if (!isMobile && currentTrackIndex === -1 && lastMouseX !== -1) {
-          // 算出游標跟這個粒子的直線距離
+          // Calculate the straight-line distance between cursor and particle
           const distToMouse = Math.hypot(node.currentX - lastMouseX, node.currentY - lastMouseY);
-          const hoverRange = 120; // 影響範圍設定為 120px 內
+          const hoverRange = 120; // Set effect range within 120px
 
           if (distToMouse < hoverRange) {
-            // 距離越近，(1 - 距離/範圍) 就越接近 1。乘上最高發光強度 25
+            // The closer it is, the closer (1 - distance/range) is to 1. Multiply by max glow intensity 25
             const hoverGlow = (1 - distToMouse / hoverRange) * 25;
             finalBlur = Math.max(finalBlur, hoverGlow);
 
-            // 順便加個小巧思：游標靠近時，粒子除了發光，還會稍微膨脹一點點，增加生命力！
+            // A nice touch: besides glowing, particles slightly expand on hover for extra vitality!
             currentRadius += (1 - distToMouse / hoverRange) * 1.5;
           }
         }
@@ -525,7 +526,7 @@ function drawWave() {
 drawWave();
 
 /* ==========================================
-   9. 雲端連線：撈取與提交
+   9. Cloud Connection: Fetch and Submit
    ========================================== */
 const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
 db.collection("emocean_bottles").where("createdAt", ">", sevenDaysAgo).get().then((querySnapshot) => {
@@ -534,7 +535,7 @@ db.collection("emocean_bottles").where("createdAt", ">", sevenDaysAgo).get().the
     nodes.push({ radius: isMobile ? (Math.random() * 1.5 + 3.5) : (Math.random() * 2 + 5), color: cloudData.color || '#ffffff', isInteractive: true, message: cloudData.text || '', baseX: Math.random() * (canvas.width - 80) + 40, baseY: canvas.height * 0.55 + Math.random() * (canvas.height * 0.35), currentX: 0, currentY: 0, isFalling: false, isGlowFading: false, glowIntensity: 0 });
   });
 
-  // 強制等待字體
+  // Force wait for fonts to load
   if (document.fonts && document.fonts.load) {
     document.fonts.load('16px "LXGW WenKai TC"').then(() => {
       updateWordCloud();
@@ -555,7 +556,7 @@ submitBtn.onclick = () => {
 };
 
 /* ==========================================
-   10. 滑鼠 Tooltip (電腦版)
+   10. Mouse Tooltip (Desktop)
    ========================================== */
 canvas.addEventListener('mousemove', (event) => {
   if (isMobile) return;
@@ -569,7 +570,7 @@ canvas.addEventListener('mousemove', (event) => {
 });
 
 /* ==========================================
-   11. 手機版 UI 專屬互動邏輯
+   11. Mobile UI Specific Interaction Logic
    ========================================== */
 const viewMsgBtn = document.getElementById('viewMsgBtn');
 const writeMsgBtn = document.getElementById('writeMsgBtn');
@@ -583,12 +584,12 @@ if (isMobile) {
     e.stopPropagation(); dimOverlay.classList.remove('hidden'); settingBtn.classList.add('hidden'); mobileBottomBar.classList.add('hidden'); dpadPanel.classList.add('hidden'); settingsPanel.classList.remove('hidden'); mobileState = 'settings';
   });
 
-  // 🌟 點擊外圍空白處防護罩：收起所有面板，齒輪與底部選單一起重新出現
+  // 🌟 Click outside shield: close all panels, bring back gear icon and bottom menu
   dimOverlay.addEventListener('click', () => {
     settingsPanel.classList.add('hidden');
     inputContent.classList.add('hidden');
 
-    // 🍎 新增這三行：把 D-pad 與 Tooltip 一起乾淨地收起來
+    // 🍎 Added these three lines: neatly pack away D-pad and Tooltip together
     dpadPanel.classList.add('hidden');
     document.getElementById('tooltip').style.display = 'none';
     selectedParticle = null;
@@ -604,11 +605,11 @@ if (isMobile) {
     e.stopPropagation(); mobileBottomBar.classList.add('hidden'); settingBtn.classList.add('hidden'); inputContent.classList.remove('hidden'); dimOverlay.classList.remove('hidden'); mobileState = 'writing';
   });
 
-  // 🌟 點擊查看留言：底部選單和齒輪一起消失，並開啟防護罩
+  // 🌟 Click "View Messages": hide bottom menu and gear, and activate shield
   viewMsgBtn.addEventListener('click', (e) => {
     e.stopPropagation();
 
-    dimOverlay.classList.remove('hidden'); // 🍎 新增這行：開啟隱形防護罩捕捉點擊
+    dimOverlay.classList.remove('hidden'); // 🍎 Added this line: activate invisible shield to catch clicks
 
     mobileBottomBar.classList.add('hidden');
     dpadPanel.classList.remove('hidden');
@@ -622,13 +623,13 @@ if (isMobile) {
 }
 
 /* ==========================================
-   13. 🎵 Web Audio API 音樂與麥克風互動引擎 (放大器升級版)
+   13. 🎵 Web Audio API Music & Mic Interaction Engine (Amplified Edition)
    ========================================== */
 let isAudioInitialized = false;
-let isMicEnabled = true;
+let isMicEnabled = false;
 let micStream = null;
 let micSource = null;
-let micGainNode = null; // 🍎 新增：麥克風專用的訊號放大器
+let micGainNode = null; // 🍎 New: Dedicated signal amplifier for the microphone
 
 const trackSources = ['./audio/track1.mp3', './audio/track2.mp3', './audio/track3.mp3', './audio/track4.mp3', './audio/track5.mp3', './audio/track6.mp3'];
 
@@ -652,15 +653,15 @@ async function initMic() {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     micSource = audioCtx.createMediaStreamSource(micStream);
 
-    // 🍎 建立放大器：將麥克風的微弱訊號放大 (原為 5 倍，稍微調低為 3 倍)
+    // 🍎 Create amplifier: boosts weak mic signals (originally 5x, tweaked down to 3x)
     micGainNode = audioCtx.createGain();
     micGainNode.gain.value = 3;
 
-    // 管線連接：麥克風 -> 放大器
+    // Pipeline connection: Mic -> Amplifier
     micSource.connect(micGainNode);
 
     if (isMicEnabled && currentTrackIndex === -1) {
-      // 管線連接：放大器 -> 特效分析
+      // Pipeline connection: Amplifier -> Effects analyzer
       micGainNode.connect(analyser);
     }
     updateMicIcon();
@@ -695,43 +696,74 @@ const micIconOn = document.getElementById('micIconOn');
 const micIconOff = document.getElementById('micIconOff');
 
 if (micBtn) {
-  micBtn.addEventListener('click', () => {
+  micBtn.addEventListener('click', async () => {
     if (currentTrackIndex !== -1) return;
 
     isMicEnabled = !isMicEnabled;
+
     if (micGainNode) {
-      // 🍎 改用 micGainNode 來控制連接與斷開
-      if (isMicEnabled) micGainNode.connect(analyser);
-      else try { micGainNode.disconnect(); } catch (e) { }
+      // NOTE: Toggle the amplifier connection to enable/disable mic input
+      if (isMicEnabled) {
+        micGainNode.connect(analyser);
+      } else {
+        try { micGainNode.disconnect(); } catch (e) { }
+        // NOTE: Stop the stream tracks to release the mic device properly
+        if (micStream) {
+          micStream.getTracks().forEach(track => track.stop());
+          micStream = null;
+          micSource = null;
+          micGainNode = null;
+        }
+      }
+      updateMicIcon();
     } else if (isMicEnabled) {
-      initMic();
+      // NOTE: First time enabling: ensure AudioContext exists before getUserMedia
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+      }
+      // NOTE: await so the icon only updates after permission result is known
+      await initMic();
+    } else {
+      updateMicIcon();
     }
-    updateMicIcon();
   });
 }
 
 const musicBtns = document.querySelectorAll('.music-mode-btn');
 musicBtns.forEach((btn, index) => {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', async () => {
     initAudio();
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
     if (currentTrackIndex === index) {
+      // NOTE: Stop the current track
       tracks[index].pause();
       btn.classList.remove('playing');
       currentTrackIndex = -1;
 
-      // 🎶 音樂結束：接回放大器
-      if (isMicEnabled && micGainNode) {
-        micGainNode.connect(analyser);
+      // NOTE: Music stopped — re-initialize mic if user had it enabled.
+      // We fully release the mic stream when music starts (see below), so we
+      // must call initMic() again here rather than just reconnecting gainNode.
+      if (isMicEnabled) {
+        await initMic();
       }
       updateMicIcon();
       return;
     }
 
-    // 🎶 播放新音樂前：切斷放大器
-    if (micGainNode) {
-      try { micGainNode.disconnect(); } catch (e) { }
+    // NOTE: Before playing music, fully stop the mic stream so Windows exits
+    // "Communication Device Mode", which otherwise ducks/distorts music output.
+    if (micStream) {
+      if (micGainNode) {
+        try { micGainNode.disconnect(); } catch (e) { }
+      }
+      micStream.getTracks().forEach(track => track.stop());
+      micStream = null;
+      micSource = null;
+      micGainNode = null;
     }
 
     tracks.forEach(track => track.pause());
