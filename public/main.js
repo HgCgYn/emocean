@@ -631,7 +631,7 @@ let micStream = null;
 let micSource = null;
 let micGainNode = null; // 🍎 New: Dedicated signal amplifier for the microphone
 
-const trackSources = ['./audio/track1.mp3', './audio/track2.mp3', './audio/track3.mp3', './audio/track4.mp3', './audio/track5.mp3', './audio/track6.mp3'];
+const trackSources = ['./audio/track1.mp3', './audio/track2.mp3', './audio/track3.mp3', './audio/track4.mp3', './audio/orchestral-jazz.mp3', './audio/track6.mp3'];
 
 function updateMicIcon() {
   const isActuallyMuted = !isMicEnabled || currentTrackIndex !== -1;
